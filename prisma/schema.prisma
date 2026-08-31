@@ -1,0 +1,62 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  EMPLOYEE
+  MANAGER
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  employeeId   String   @unique @map("employee_id") @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(EMPLOYEE)
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@map("users")
+}
+
+model Employee {
+  id         String   @id @default(uuid()) @db.Uuid
+  firstName  String   @map("first_name") @db.VarChar(100)
+  surname    String   @db.VarChar(100)
+  jobTitle   String   @map("job_title") @db.VarChar(100)
+  email      String   @unique @db.VarChar(255)
+  managerId  String?  @map("manager_id") @db.Uuid
+
+  // self-relation: an employee has one manager, and can have many reports
+  manager    Employee?  @relation("ManagerReports", fields: [managerId], references: [id])
+  reports    Employee[] @relation("ManagerReports")
+
+  healthEntries HealthEntry[]
+
+  user User?
+
+  @@map("employees")
+}
+
+model HealthEntry {
+  id                String    @id @default(uuid()) @db.Uuid
+  employeeId        String    @map("employee_id") @db.Uuid
+  issueDescription  String    @map("issue_description") @db.Text
+  supportNeeded     String    @map("support_needed") @db.Text
+  supportStartDate  DateTime  @map("support_start_date") @db.Date
+  supportEndDate    DateTime? @map("support_end_date") @db.Date
+  attachmentKey     String?   @map("attachment_key") @db.VarChar(512)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@map("health_entries")
+}
